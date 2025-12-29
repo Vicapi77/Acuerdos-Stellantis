@@ -14,7 +14,6 @@
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
         th { background: var(--primary); color: white; }
-        .progress-bg { background: #eee; height: 10px; border-radius: 5px; width: 80px; }
         .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
         .btn-add { background: var(--success); margin-bottom: 15px; }
         .loading { color: var(--primary); font-weight: bold; }
@@ -22,13 +21,13 @@
 </head>
 <body>
 
-    <div style="display: flex; justify-content: space-between;">
-        <h1>Dashboard Ejecutivo (Nube)</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Dashboard Ejecutivo Stellantis</h1>
         <p id="status-cloud" class="loading">Sincronizando con Firebase...</p>
     </div>
 
-    <div class="kpi-container" id="kpis">
-        <div class="kpi-card"> <h2 id="kpi-total">0</h2> <small>TOTAL</small> </div>
+    <div class="kpi-container">
+        <div class="kpi-card"> <h2 id="kpi-total">0</h2> <small>TOTAL ACUERDOS</small> </div>
         <div class="kpi-card"> <h2 id="kpi-avg">0%</h2> <small>AVANCE GLOBAL</small> </div>
         <div class="kpi-card"> <h2 id="kpi-ok" style="color:var(--success)">0</h2> <small>COMPLETOS</small> </div>
     </div>
@@ -39,10 +38,10 @@
         <thead>
             <tr>
                 <th>Área</th>
-                <th>Tema</th>
-                <th>Acción</th>
+                <th>Tema / Problema</th>
+                <th>Acción / Contramedida</th>
                 <th>Responsable</th>
-                <th>Avance</th>
+                <th>Avance (%)</th>
                 <th>Acciones</th>
             </tr>
         </thead>
@@ -50,37 +49,34 @@
     </table>
 
     <script>
-        // --- CONFIGURACIÓN DE FIREBASE ---
-       // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+        // --- CONFIGURACIÓN DE FIREBASE (CORREGIDA) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCsMH4Zggn5XcgHJNai7h-mtmTbAbTLP1o",
+            authDomain: "dashboard-stellantis-c34d5.firebaseapp.com",
+            projectId: "dashboard-stellantis-c34d5",
+            storageBucket: "dashboard-stellantis-c34d5.firebasestorage.app",
+            messagingSenderId: "938441957804",
+            appId: "1:938441957804:web:c729cea65c7eebe7275a09"
+        };
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyCsMH4Zggn5XcgHJNai7h-mtmTbAbTLP1o",
-  authDomain: "dashboard-stellantis-c34d5.firebaseapp.com",
-  projectId: "dashboard-stellantis-c34d5",
-  storageBucket: "dashboard-stellantis-c34d5.firebasestorage.app",
-  messagingSenderId: "938441957804",
-  appId: "1:938441957804:web:c729cea65c7eebe7275a09",
-  measurementId: "G-PP4NCWDT15"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+        // Inicializar Firebase usando la versión Compat
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const collectionName = "acuerdos_stellantis";
 
         // --- LÓGICA DEL DASHBOARD ---
 
-        // Escuchar cambios en tiempo real
-        db.collection(collectionName).orderBy("area").onSnapshot((snapshot) => {
+        // Leer datos en tiempo real
+        db.collection(collectionName).onSnapshot((snapshot) => {
             const data = [];
             snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
             renderTable(data);
-            document.getElementById('status-cloud').innerText = "☁ Conectado a la Nube";
+            document.getElementById('status-cloud').innerText = "☁ Conectado y Sincronizado";
+            document.getElementById('status-cloud').style.color = "#28a745";
+        }, (error) => {
+            console.error("Error de Firebase: ", error);
+            document.getElementById('status-cloud').innerText = "❌ Error de conexión (Revisa las reglas de Firestore)";
+            document.getElementById('status-cloud').style.color = "red";
         });
 
         function renderTable(data) {
@@ -90,17 +86,18 @@ const analytics = getAnalytics(app);
             let completos = 0;
 
             data.forEach(item => {
-                totalAvance += parseInt(item.avance);
-                if(item.avance >= 100) completos++;
+                const avanceNum = parseInt(item.avance) || 0;
+                totalAvance += avanceNum;
+                if(avanceNum >= 100) completos++;
 
                 tbody.innerHTML += `
                     <tr>
-                        <td contenteditable="true" onblur="updateField('${item.id}', 'area', this.innerText)">${item.area}</td>
-                        <td contenteditable="true" onblur="updateField('${item.id}', 'tema', this.innerText)">${item.tema}</td>
-                        <td contenteditable="true" onblur="updateField('${item.id}', 'accion', this.innerText)">${item.accion}</td>
-                        <td contenteditable="true" onblur="updateField('${item.id}', 'resp', this.innerText)">${item.resp}</td>
+                        <td contenteditable="true" onblur="updateField('${item.id}', 'area', this.innerText)">${item.area || ''}</td>
+                        <td contenteditable="true" onblur="updateField('${item.id}', 'tema', this.innerText)">${item.tema || ''}</td>
+                        <td contenteditable="true" onblur="updateField('${item.id}', 'accion', this.innerText)">${item.accion || ''}</td>
+                        <td contenteditable="true" onblur="updateField('${item.id}', 'resp', this.innerText)">${item.resp || ''}</td>
                         <td>
-                            <input type="number" value="${item.avance}" style="width:50px" 
+                            <input type="number" value="${avanceNum}" style="width:60px" 
                                    onchange="updateField('${item.id}', 'avance', this.value)"> %
                         </td>
                         <td>
@@ -110,29 +107,31 @@ const analytics = getAnalytics(app);
                 `;
             });
 
-            // Actualizar KPIs
             document.getElementById('kpi-total').innerText = data.length;
             document.getElementById('kpi-avg').innerText = data.length > 0 ? Math.round(totalAvance/data.length) + '%' : '0%';
             document.getElementById('kpi-ok').innerText = completos;
         }
 
-        // Funciones de Base de Datos
         async function updateField(id, field, value) {
-            await db.collection(collectionName).doc(id).update({ [field]: value });
+            try {
+                await db.collection(collectionName).doc(id).update({ [field]: value });
+            } catch (e) { console.error("Error al actualizar: ", e); }
         }
 
         async function addRow() {
-            await db.collection(collectionName).add({
-                area: "Nueva Área",
-                tema: "Nuevo Tema",
-                accion: "Nueva Acción",
-                resp: "Responsable",
-                avance: 0
-            });
+            try {
+                await db.collection(collectionName).add({
+                    area: "Nueva Área",
+                    tema: "Nuevo Tema",
+                    accion: "Nueva Acción",
+                    resp: "Nombre",
+                    avance: 0
+                });
+            } catch (e) { alert("Error: Verifica las Reglas de Firestore en la consola de Firebase"); }
         }
 
         async function deleteDoc(id) {
-            if(confirm("¿Borrar este acuerdo?")) {
+            if(confirm("¿Estás seguro de eliminar este registro?")) {
                 await db.collection(collectionName).doc(id).delete();
             }
         }
